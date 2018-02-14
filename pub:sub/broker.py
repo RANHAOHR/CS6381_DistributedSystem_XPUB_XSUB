@@ -14,14 +14,16 @@ context = zmq.Context()
 print "Connecting to server..."
 socket = context.socket(zmq.REQ)
 
-socket.connect ("tcp://*:5550")
+socket.connect("tcp://*:5550")
 
 def getPublisher():
+    pub_signal = False
     while True:
         #  Wait for next request from client
         message = socket.recv()
-        print "Received request: ", message
+        print ("Received request: ", message)
+        pub_signal = True
         time.sleep (1)
-        socket.send("World from %s" % port)
+        socket.send(pub_signal)
 
 def getSubscriber():
