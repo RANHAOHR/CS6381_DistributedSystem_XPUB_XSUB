@@ -27,35 +27,50 @@ SIGNAL = False
 topic = "1001"
 ownership_strength = 0
 history = 0
-#write this as an client, the broker as a server
-def register_pub(topic, ownership_strength, history):
-    context = zmq.Context()
-    s = context.socket(zmq.REP)
-    s.bind("tcp://*:5550")
 
-    #  Wait for next request from client
-    SIGNAL = s.recv()
-    print ("Received request: ", SIGNAL)
-    time.sleep (0.5)
-    s.send_multipart([topic, ownership_strength, history])
+def worker_task(port):
+    """Worker task, using a REQ socket to do load-balancing."""
+    socket = zmq.Context().socket(zmq.REQ)
+    socket.identity = u"Worker-{}".format(port).encode("ascii")
+    socket.connect("ipc://backend.ipc")
 
-def main():
+    # Tell broker we're ready for work
+    socket.send(b"READY")
+
+    while True:
+        address, empty, request = socket.recv_multipart()
+        print("{}: {}".format(socket.identity.decode("ascii"),
+                              request.decode("ascii")))
+        socket.send_multipart([address, b"", b"OK"])
+
+def server_pub(port):
     context = zmq.Context()
     # The difference here is that this is a publisher and its aim in life is
     # to just publish some value. The binding is as before.
     socket = context.socket(zmq.PUB)
-    socket.bind("tcp://*:5556")
-
-    register_pub(topic, ownership_strength, history) #register first and wait the SIGNAL
-
+    socket.bind("tcp://*:%s" % port)
     # keep publishing
-    while SIGNAL:
+    while True:
         zipcode = randrange(1, 100000)
         temperature = randrange(-80, 135)
         relhumidity = randrange(10, 60)
 
         socket.send_string("%i %i %i" % (zipcode, temperature, relhumidity))
         time.sleep(1)
+
+def main():
+    pub_port = "5556"
+    push_port = "5557"
+    if len(sys.argv) > 1:
+        pub_port =  sys.argv[1]
+        int(pub_port)
+
+    if len(sys.argv) > 2:
+        push_port =  sys.argv[2]
+        int(push_port)
+
+    Process(target=server_push, args=(push_port,)).start()
+    Process(target=server_pub, args=(pub_port,)).start()
 
 if __name__ == "__main__":
     main()

@@ -1,29 +1,65 @@
 import zmq
-from random import randrange
 import time
+import sys
+import random
+# from  multiprocessing import Process
 
+def main():
+    """Load balancer main loop."""
+    # Prepare context and sockets
+    context = zmq.Context.instance()
+    frontend = context.socket(zmq.ROUTER)
+    frontend.bind("ipc://frontend.ipc")
+    backend = context.socket(zmq.ROUTER)
+    backend.bind("ipc://backend.ipc")
 
-# let publisher and subscriber both talk to the same port here
-port = "5550"
-# if len(sys.argv) > 1:
-#     port =  sys.argv[1]
-#     int(port)
+    # # Start background tasks
+    # def start(task, *args):
+    #     process = multiprocessing.Process(target=task, args=args)
+    #     process.daemon = True
+    #     process.start()
+    # for i in range(NBR_CLIENTS):
+    #     start(client_task, i)
+    # for i in range(NBR_WORKERS):
+    #     start(worker_task, i)
 
-#using a server to get all the registers???
-context = zmq.Context()
-print "Connecting to server..."
-socket = context.socket(zmq.REQ)
+    # Initialize main loop state
+    # count = NBR_CLIENTS
+    workers = []
+    poller = zmq.Poller()
+    # Only poll for requests from backend until workers are available
+    poller.register(backend, zmq.POLLIN)
 
-socket.connect("tcp://*:5550")
-
-def getPublisher():
-    pub_signal = False
     while True:
-        #  Wait for next request from client
-        message = socket.recv()
-        print ("Received request: ", message)
-        pub_signal = True
-        time.sleep (1)
-        socket.send(pub_signal)
+        sockets = dict(poller.poll())
 
-def getSubscriber():
+        if backend in sockets:
+            # Handle worker activity on the backend
+            request = backend.recv_multipart()
+            worker, empty, client = request[:3]
+            if not workers:
+                # Poll for clients now that a worker is available
+                poller.register(frontend, zmq.POLLIN)
+            workers.append(worker)
+            if client != b"READY" and len(request) > 3:
+                # If client reply, send rest back to frontend
+                empty, reply = request[3:]
+                frontend.send_multipart([client, b"", reply])
+
+
+        if frontend in sockets:
+            # Get next client request, route to last-used worker
+            client, empty, request = frontend.recv_multipart()
+            worker = workers.pop(0)
+            backend.send_multipart([worker, b"", client, b"", request])
+            if not workers:
+                # Don't poll clients if no workers are available
+                poller.unregister(frontend)
+
+    # Clean up
+    backend.close()
+    frontend.close()
+    context.term()
+
+if __name__ == "__main__":
+    main()
