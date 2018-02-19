@@ -3,10 +3,10 @@
 USERNAME=$1
 EMAIL=$2
 
-if ["$USERNAME" != ""] ||["EMAIL" != ""]
+if [ "$USERNAME" != "" ] || [ "$EMAIL" != "" ];
 then
   echo "Install Mininet."
-  sudo apt-get install Mininet
+  sudo apt-get install mininet
   sudo mn -c
 
   echo "Install git."
@@ -30,3 +30,6 @@ then
 else
   echo "USAGE: ./setup_mininetZMQ.sh github_username github_email"
 fi
+
+
+echo "[!!!] NB: You must still manually add your ROS_IP to your ~/.bashrc.  Do this by checking your IP with hostname -I or ifconfig and then adding export ROS_IP='x.x.x.x` to your ~/.bashrc."
