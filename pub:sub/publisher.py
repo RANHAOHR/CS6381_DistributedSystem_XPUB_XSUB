@@ -25,11 +25,11 @@ from multiprocessing import Process
 print("Current libzmq version is %s" % zmq.zmq_version())
 print("Current  pyzmq version is %s" % zmq.__version__)
 
-topic = "1001"
-ownership_strength = 0
-history = 0
+# topic = "1001"
+# ownership_strength = 0
+# history = 0
 
-def worker_task(port):
+def worker_task(port,ownership_strength,history):
     """Worker task, using a REQ socket to do load-balancing."""
     socket = zmq.Context().socket(zmq.REQ)
     socket.identity = u"Worker-{}".format(port).encode("ascii")
@@ -42,8 +42,7 @@ def worker_task(port):
         address, empty, request = socket.recv_multipart()
         print("{}: {}".format(socket.identity.decode("ascii"),
                               request.decode("ascii")))
-        socket.send_multipart([address, b"", b"OK"])
-        socket.send_multipart([topic, ownership_strength, history])
+        socket.send_multipart([address, b"", b"OK" ownership_strength, history])
 
 def server_pub(port):
     context = zmq.Context()
@@ -79,7 +78,7 @@ def main():
         history =  sys.argv[4]
         int(history)
 
-    Process(target=worker_task, args=(push_port,)).start()
+    Process(target=worker_task, args=(push_port,ownership_strength,history,)).start()
     Process(target=server_pub, args=(pub_port,)).start()
 
 if __name__ == "__main__":
