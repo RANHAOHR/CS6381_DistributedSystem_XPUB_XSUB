@@ -12,6 +12,9 @@ then
   echo "Install git."
   sudo apt-get install git
 
+  git config --global user.email "EMAIL"
+  git config --global user.name "USERNAME"
+  
   echo "Config Mininet."
   git clone https://github.com/mininet/mininet.git
   sudo apt-get install net-tools

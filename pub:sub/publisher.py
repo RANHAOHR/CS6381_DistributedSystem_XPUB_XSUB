@@ -17,13 +17,14 @@
 #
 
 import zmq
+import sys
 from random import randrange
 import time
+from multiprocessing import Process
 
 print("Current libzmq version is %s" % zmq.zmq_version())
 print("Current  pyzmq version is %s" % zmq.__version__)
 
-SIGNAL = False
 topic = "1001"
 ownership_strength = 0
 history = 0
@@ -42,6 +43,7 @@ def worker_task(port):
         print("{}: {}".format(socket.identity.decode("ascii"),
                               request.decode("ascii")))
         socket.send_multipart([address, b"", b"OK"])
+        socket.send_multipart([topic, ownership_strength, history])
 
 def server_pub(port):
     context = zmq.Context()
@@ -69,7 +71,15 @@ def main():
         push_port =  sys.argv[2]
         int(push_port)
 
-    Process(target=server_push, args=(push_port,)).start()
+    if len(sys.argv) > 3:
+        ownership_strength =  sys.argv[3]
+        int(ownership_strength)
+
+    if len(sys.argv) > 4:
+        history =  sys.argv[4]
+        int(history)
+
+    Process(target=worker_task, args=(push_port,)).start()
     Process(target=server_pub, args=(pub_port,)).start()
 
 if __name__ == "__main__":

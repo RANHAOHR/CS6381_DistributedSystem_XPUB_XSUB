@@ -17,9 +17,11 @@
 #   Collects weather updates and finds avg temp in zipcode
 #
 
-import sys
 import zmq
+import sys
+from random import randrange
 import time
+from multiprocessing import Process
 
 
 def client_task(ident):
@@ -53,41 +55,6 @@ def subscriber(port):
     # system what it is interested in
     socket.setsockopt_string(zmq.SUBSCRIBE, zip_filter)
 
-    return socket
-
-def broker(port_push,port_sub):
-    context = zmq.Context()
-    socket_pull = context.socket(zmq.PULL)
-    socket_pull.connect ("tcp://localhost:%s" % port_push)
-    print "Connected to server with port %s" % port_push
-    socket_sub = subscriber(port_sub)
-    # socket_sub = context.socket(zmq.SUB)
-    # socket_sub.connect ("tcp://localhost:%s" % port_sub)
-    # socket_sub.setsockopt(zmq.SUBSCRIBE, "9")
-    # print "Connected to publisher with port %s" % port_sub
-    ## Initialize poll set
-    poller = zmq.Poller()
-    poller.register(socket_pull, zmq.POLLIN)
-    poller.register(socket_sub, zmq.POLLIN)
-    # Work on requests from both server and publisher
-    should_continue = True
-    while should_continue:
-        socks = dict(poller.poll())
-        if socket_pull in socks and socks[socket_pull] == zmq.POLLIN:
-            message = socket_pull.recv()
-            print "Recieved control command: %s" % message
-            if message == "Exit":
-                print "Recieved exit command, client will stop recieving messages"
-                should_continue = False
-
-        if socket_sub in socks and socks[socket_sub] == zmq.POLLIN:
-            messageHandler(socket_sub)
-            # string = socket_sub.recv()
-            # topic, messagedata = string.split()
-            # print "Processing ... ", topic, messagedata
-
-def messageHandler(socket):
-    # Process 5 updates
     total_temp = 0
     for update_nbr in range(5):
         string = socket.recv_string()
@@ -98,11 +65,14 @@ def messageHandler(socket):
           zip_filter, total_temp / (update_nbr+1))
     )
 
-
 def main():
-    server_sub_port = sys.argv[1]
-    server_pub_port = sys.argv[2]
-    Process(target=broker, args=(server_sub_port,server_pub_port,)).start()
+    # server_sub_port = sys.argv[1]
+    # server_pub_port = sys.argv[2]
+
+    server_sub_port = "5556"
+    server_pub_port = "5557"
+    Process(target=client_task, args=(server_pub_port,)).start()
+    Process(target=subscriber, args=(server_sub_port,)).start()
 
 if __name__ == "__main__":
     main()
