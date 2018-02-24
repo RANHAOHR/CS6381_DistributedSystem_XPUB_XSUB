@@ -15,13 +15,13 @@ Go to the package directory and run
 
 `python proxy.py`
 
-#### Run the publisher by
+#### Run any publisher by
 
 `python publisher1.py "address of the broker node"`
 
 #### Run the first subscriber by
 
-`python subscriber1.py "address of the broker node"``
+`python subscriber1.py "address of the broker node"`
 
 #### When running additional subscribers,
 
