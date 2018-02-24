@@ -32,7 +32,7 @@ When running the broker on host 3,  running the 2nd subscriber on host 5:
 
 #### Run
 `python subscriber1.py 10.0.0.3 1000`
-#### and type: `10.0.0.3 1000` on the broker's window:
+and type: `10.0.0.3 1000` on the broker's window:
 
 ![Alt text](/images/subscriber.png?raw=true)
 
