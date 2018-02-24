@@ -1,4 +1,4 @@
-# CS6381_Distributed_System
+# CS6381_Distributed_System_XPUB_XSUB
 
 A package for Publish-Subscribe using ZMQ and Mininet, build for CS6381 Distributed System assignment#1.
 The package builds a small layer of middleware on top of XPUB/XSUB to support anonymity, OWNERSHIP_STRENGTH and HISTORY.
@@ -7,7 +7,7 @@ The package builds a small layer of middleware on top of XPUB/XSUB to support an
 
 Ran Hao (rxh349@case.edu) Xiaodong Yang (xiaodong.yang@vanderbilt.edu) Tong Liang (liangtong39@gmail.com)
 
-##### Run the bash file if running in a new system:
+##### Run the bash file for installation of Mininet and ZMQ:
 Go to the package directory and run
 `chmod +x setup_mininetZMQ.sh` and `./setup_mininetZMQ.sh`
 
