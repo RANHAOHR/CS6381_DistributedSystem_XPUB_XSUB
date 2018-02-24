@@ -23,12 +23,12 @@ Go to the package directory and run
 
 `python subscriber1.py "address of the broker node"`
 
-#### When running additional subscribers,
+#### When running additional subscribers, run
 
 `python subscriber1.py "address of the broker node" "port of the subscriber"`
 
-And please indicate the port for the broker: type in the address of the broker and the port number of the subscriber in the broker host window, for example:
-When running the broker on host 3,  running the 2nd subscriber on host 5:
+And please indicate the port for the broker: type in the address of the broker and the port number of the subscriber in the broker host window, for example,
+when running the broker on host 3,  running the 2nd subscriber on host 5:
 
 #### Run
 `python subscriber1.py 10.0.0.3 1000`
