@@ -17,15 +17,16 @@ Go to the package directory and run
 
 #### Run any publisher by
 
-`python publisher1.py "address of the broker node"`
+`python publisher.py "address of the broker node" "OWNERSHIP_STRENGTH"`
+The history of the publisher is set to 3, the default OWNERSHIP_STRENGTH is set to 2.
 
 #### Run the first subscriber by
 
-`python subscriber1.py "address of the broker node"`
+`python subscriber.py "address of the broker node"`
 
 #### When running additional subscribers, run
 
-`python subscriber1.py "address of the broker node" "port of the subscriber"`
+`python subscriber.py "address of the broker node" "port of the subscriber"`
 
 And please indicate the port for the broker: type in the address of the broker and the port number of the subscriber in the broker host window, for example,
 when running the broker on host 3,  running the 2nd subscriber on host 5:
