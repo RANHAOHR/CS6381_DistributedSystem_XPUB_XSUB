@@ -9,7 +9,7 @@ Ran Hao (rxh349@case.edu) Xiaodong Yang (xiaodong.yang@vanderbilt.edu) Tong Lian
 
 ##### Run the bash file for installation of Mininet and ZMQ:
 Go to the package directory and run
-`chmod +x setup_mininetZMQ.sh` and `./setup_mininetZMQ.sh`
+`chmod +x setup_mininetZMQ.sh` and `./setup_mininetZMQ.sh github_username github_email`
 
 #### Run the broker on any host by
 
