@@ -32,8 +32,8 @@ And please indicate the port for the broker: type in the address of the broker a
 when running the broker on host 3,  running the 2nd subscriber on host 5:
 
 #### Run
-`python subscriber1.py 10.0.0.3 1000`
-and type: `10.0.0.3 1000` on the broker's window:
+`python subscriber1.py 10.0.0.3 1001` when give the subscriber a port of 1001
+and type: `10.0.0.3 1001` on the broker's window:
 
 ![Alt text](/images/subscriber.png?raw=true)
 
