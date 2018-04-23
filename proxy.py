@@ -65,7 +65,7 @@ class Proxy:
                 curInd = strengh_vec.index(ownership)
                 time.sleep(1)
                 for i in range(len(histry_msg)):
-                    pub.send_multipart (sub_msg[i])
+                    pub.send_multipart (histry_msg[i])
                     # pub.send_multipart(['10001, 0, 0, 0, 0'])
                     time.sleep(0.1)
             pub.unbind(self.global_url)
