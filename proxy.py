@@ -4,13 +4,9 @@
 #
 # Code taken from ZeroMQ examples with additional
 # comments or extra statements added to make the code
-# more self-explanatory  or tweak it for our purposes
+# more self-explanatory or tweak it for our purposes
 #
 # We are executing these samples on a Mininet-emulated environment
-#
-#
-
-# system and time
 import os
 import sys
 import time
@@ -18,150 +14,170 @@ import threading
 import zmq
 from random import randrange
 
-
 class Proxy:
-	"""Implementation of the proxy"""
+    """Implementation of the proxy"""
+    def __init__(self):
+        # Use XPUB/XSUB to get multiple contents from different publishers
+        self.context = zmq.Context()
+        self.xsubsocket = self.context.socket(zmq.XSUB)
+        self.xsubsocket.bind("tcp://*:5555")
+        self.xpubsocket = self.context.socket (zmq.XPUB)
+        self.xpubsocket.setsockopt(zmq.XPUB_VERBOSE, 1)
+        self.xpubsocket.bind ("tcp://*:5556")
+        self.xpubsocket.send_multipart([b'\x01', b'10001'])
+        # Now we are going to create a poller
+        self.poller = zmq.Poller ()
+        self.poller.register (self.xsubsocket, zmq.POLLIN)
+        self.poller.register (self.xpubsocket, zmq.POLLIN)
+        # Now threading1 runs regardless of user input
+        self.threading1 = threading.Thread(target=self.background_input)
+        self.threading1.daemon = True
+        self.threading1.start()
+        self.global_url = 0
+        self.global_port = 0
+        self.newSub = False
 
-	def __init__(self):
-		# Get the context
-		# This is a proxy. We create the XSUB and XPUB endpoints
-		#print ("This is proxy: creating xsub and xpubsockets")
-		self.context = zmq.Context()
-		self.xsubsocket = self.context.socket(zmq.XSUB)
-		self.xsubsocket.bind("tcp://*:5555")
-		self.xpubsocket = self.context.socket (zmq.XPUB)
-		self.xpubsocket.setsockopt(zmq.XPUB_VERBOSE, 1)
-		self.xpubsocket.bind ("tcp://*:5556")
-		self.xpubsocket.send_multipart([b'\x01', b'10001'])
-		# Now we are going to create a poller
-		self.poller = zmq.Poller ()
-		self.poller.register (self.xsubsocket, zmq.POLLIN)
-		self.poller.register (self.xpubsocket, zmq.POLLIN)
-		# Now threading1 runs regardless of user input
-		self.threading1 = threading.Thread(target=self.background_input)
-		self.threading1.daemon = True
-		self.threading1.start()
-		self.global_url = 0
-		self.global_port = 0
-		self.newSub = False	
+    def background_input(self):
+        while True:
+            addr_input = raw_input()
+            ip, port = addr_input.split()
+            if True:
+                pub_url = "tcp://" + ip + ":" + port
+                self.global_port = port
+                self.global_url = pub_url
+                self.newSub = True
 
-	def background_input(self):
-		while True:
-			addr_input = raw_input()
-			ip, port = addr_input.split()
-			if True:
-				pub_url = "tcp://" + ip + ":" + port
-				self.global_port = port
-				self.global_url = pub_url
-				self.newSub = True
+    def history_vector(self, h_vec, ind, history, msg):
+            if len(h_vec[ind]) < history:
+                h_vec[ind].append(msg)
+            else:
+                h_vec[ind].pop(0)
+                h_vec[ind].append(msg)
+            return h_vec
 
-	def history_vector(self, h_vec, ind, history, msg):
-			if len(h_vec[ind]) < history:
-				h_vec[ind].append(msg)
-			else:
-				h_vec[ind].pop(0)
-				h_vec[ind].append(msg)		
-			return h_vec
+    def sendToSubscriber(self, sub_msg, histry_msg, ownership, strengh_vec):
+        #print(sub_msg)
+        if self.newSub: #Want to send the history message here when only the new subscriber is active
+            ctx = zmq.Context()
+            pub = ctx.socket(zmq.PUB)
+            pub.bind(self.global_url)
+            if ownership == max(strengh_vec):
+                curInd = strengh_vec.index(ownership)
+                time.sleep(1)
+                for i in range(len(histry_msg)):
+                    pub.send_multipart (sub_msg[i])
+                    # pub.send_multipart(['10001, 0, 0, 0, 0'])
+                    time.sleep(0.1)
+            pub.unbind(self.global_url)
+            pub.close()
+            ctx.term()
+            xurl = "tcp://*:" + self.global_port
+            self.xpubsocket.bind(xurl)
+            self.newSub = False
+        else:
+            self.xpubsocket.send_multipart (sub_msg) #send the message by xpub
 
-	def schedule(self):
-		cur_strength = 0
-		pre_strength = 0
-		count = 0
-		num = 10
-		history_vec = []
-		strengh_vec = []
-		pubInd = 0
-		ownership = 0
-		while True:
-			events = dict (self.poller.poll (10000))
-			# Is there any data from publisher?
-			if self.xsubsocket in events:
-				msg = self.xsubsocket.recv_multipart()
-				#print ("Publication = {}".format (msg))
-				content= msg[0]
-				zipcode, temperature, relhumidity, ownership, history = content.split(" ")
-				#print("all possible ownership", ownership)
-				ownership = int(ownership.decode('ascii'))
-				history = int(history.decode('ascii'))
+    def scheduleInTopic(self, info, msg):
+        [cur_strength, pre_strength, count, history_vec, strengh_vec, pubInd, pre_msg, cur_msg] = info
 
-				# creat the history stock for each publisher, should be FIFO
-				if ownership not in strengh_vec:
-					pubInd += 1 # the actual size of the publishers
-					strengh_vec.append(ownership)
-					#create list for this publisher
-					history_vec.append([])
-					history_vec = self.history_vector(history_vec, pubInd-1, history, msg)
-					#if len(history_vec[pubInd-1]) < history:
-					#	history_vec[pubInd-1].append(msg)
-					#else:
-					#	history_vec[pubInd-1].pop(0)
-					#	history_vec[pubInd-1].append(msg)
-				else:
-					curInd = strengh_vec.index(ownership)
-					history_vec = self.history_vector(history_vec, curInd, history, msg)
-					#if len(history_vec[curInd]) < history:
-					#	history_vec[curInd].append(msg)
-					#else:
-					#	history_vec[curInd].pop(0)
-					#	history_vec[curInd].append(msg)
-				#print("history_vec",history_vec)
-				if self.newSub:
-					ctx = zmq.Context()
-					pub = ctx.socket(zmq.PUB)
-					pub.bind(self.global_url)
-					if ownership == max(strengh_vec):
-						curInd = strengh_vec.index(ownership)
-						time.sleep(0.5)
-						for i in range(len(history_vec[curInd])):
-							# print("sending:",history_vec[curInd])
-							pub.send_multipart (history_vec[curInd][i])
-							# pub.send_multipart(['10001, 0, 0, 0, 0'])
-							time.sleep(0.1)
-					pub.unbind(self.global_url)
-					pub.close()
-					ctx.term()
-					xurl = "tcp://*:" + self.global_port
-					self.xpubsocket.bind(xurl)
-					self.newSub = False
-				else:
-					#send the current message
-					if ownership > cur_strength:
-						pre_strength = cur_strength
-						cur_strength = ownership
-						self.xpubsocket.send_multipart (msg)
-						count = 0
-					elif ownership == cur_strength:
-						self.xpubsocket.send_multipart (msg)
-						count = 0
-					else:
-						count = count +1
-						if count>= num:
-							cur_strength = pre_strength
-							count = 0
-							# print("nothing happened")
+        sample_num = 10
+        content= msg[0]
+        zipcode, temperature, relhumidity, ownership, history, pub_time = content.split(" ")
 
+        ownership = int(ownership.decode('ascii'))
+        history = int(history.decode('ascii'))
+        # creat the history stock for each publisher, should be FIFO
+        if ownership not in strengh_vec:
+            strengh_vec.append(ownership)
+            #create list for this publisher
+            history_vec.append([])
+            history_vec = self.history_vector(history_vec, pubInd, history, msg)
+            pubInd += 1 # the actual size of the publishers
+        else:
+            curInd = strengh_vec.index(ownership)
+            history_vec = self.history_vector(history_vec, curInd, history, msg)
 
-			if self.xpubsocket in events:
-				msg = self.xpubsocket.recv_multipart()
-				# parse the incoming message
-				#print ("subscription = {}".format (msg))
-				# send the subscription info to publishers
-				# if msg[0] == '\x0110001':
-				#     # topic = msg[1:]
-				#     newSub = True
-				#     #print "Topic: new subscriber"
-				# else:
-				#     newSub = False
-					#print "Topic: subscriber left"
+        #get the highest ownership msg to register the hash ring, using a heartbeat listener
+        if ownership > cur_strength:
+            pre_strength = cur_strength
+            cur_strength = ownership
+            pre_msg = cur_msg
+            cur_msg = msg
+            count = 0
+        elif ownership == cur_strength:
+            cur_msg = msg
+            count = 0
+        else:
+            count = count + 1
+            if count>= sample_num:
+                cur_strength = pre_strength
+                cur_msg = pre_msg
+                count = 0
 
-				self.xsubsocket.send_multipart(msg)
+        #update the info vector fro this topic
+        info[0] = cur_strength
+        info[1] = pre_strength
+        info[2] = count
+        info[3] = history_vec
+        info[4] = strengh_vec
+        info[5] = pubInd
+        info[6] = pre_msg
+        info[7] = cur_msg
 
-	def close(self):
-		""" This method closes the PyZMQ socket. """
-		self.xsubsocket.close(0)
-		self.xpubsocket.close(0)
+        #get the history vector for msg
+        histInd = strengh_vec.index(cur_strength)
+        histry_msg = history_vec[histInd]
+
+        return cur_msg, histry_msg, ownership, strengh_vec
+
+    def schedule(self):
+        topic_info_queue = [] #the content queue for different topic (zipcode)
+        topicInd = 0
+        zip_list = [] #the ziplist to keep track with the zipcodes received
+
+        while True:
+            events = dict (self.poller.poll (10000))
+            # Is there any data from publisher?
+            if self.xsubsocket in events:
+                msg = self.xsubsocket.recv_multipart()
+                content= msg[0]
+                zipcode, temperature, relhumidity, ownership, history, pub_time = content.split(" ")
+
+                if zipcode not in zip_list: # a new topic just come from a new publisher
+                    zip_list.append(zipcode)
+                    #for this topic, set initial informations for the ownership and history function
+                    cur_strength = 0
+                    pre_strength = 0
+                    count = 0
+                    history_vec = []
+                    strengh_vec = []
+                    pubInd = 0
+                    pre_msg = []
+                    cur_msg = []
+
+                    topic_info = [cur_strength, pre_strength, count, history_vec, strengh_vec, pubInd, pre_msg, cur_msg]
+                    topic_info_queue.append(topic_info)
+                    #start to collect the msg for the new topic
+                    topic_msg, histry_msg, ownership, strengh_vec = self.scheduleInTopic(topic_info_queue[topicInd], msg)
+                    topicInd +=1
+
+                else:
+                    zipInd = zip_list.index(zipcode)
+                    topic_msg, histry_msg, ownership, strengh_vec = self.scheduleInTopic(topic_info_queue[zipInd], msg)
+                    
+                #Send the msg to the registered subscriber, give the key
+                self.sendToSubscriber(topic_msg, histry_msg, ownership, strengh_vec)
+
+            if self.xpubsocket in events: #a subscriber comes here
+                msg = self.xpubsocket.recv_multipart()
+                self.xsubsocket.send_multipart(msg)
+
+    def close(self):
+        """ This method closes the PyZMQ socket. """
+        self.xsubsocket.close(0)
+        self.xpubsocket.close(0)
 
 
 if __name__ == '__main__':
-	proxy = Proxy()
-	proxy.schedule()
+    proxy = Proxy()
+    proxy.schedule()
